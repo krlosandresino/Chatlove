@@ -8,7 +8,7 @@
         :root { --primary: #ff4d6d; --bg: #fce4ec; }
         * { box-sizing: border-box; touch-action: manipulation; }
         
-        /* Estilos del Login */
+        /* Login */
         #login-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); display: flex; flex-direction: column;
@@ -22,17 +22,16 @@
             width: 100%; padding: 12px; margin: 20px 0; border: 2px solid #eee;
             border-radius: 10px; text-align: center; font-size: 20px; letter-spacing: 5px; outline: none;
         }
-        #loginBtn {
-            background: var(--primary); color: white; border: none;
-            padding: 10px 25px; border-radius: 10px; cursor: pointer; font-weight: bold;
-        }
+        #loginBtn { background: var(--primary); color: white; border: none; padding: 10px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; }
 
-        /* Estilos del Chat (Sin cambios) */
+        /* Chat */
         body { font-family: sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
         #app { display: none; width: 100%; max-width: 420px; flex-direction: column; background: white; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
         
         #header { background: var(--primary); color: white; padding: 12px; text-align: center; font-weight: bold; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
-        #clear-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
+        .header-btns { display: flex; gap: 8px; }
+        .h-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; }
+
         #chat-box { flex: 1; padding: 15px; overflow-y: auto; background: white; display: flex; flex-direction: column; gap: 10px; }
         .msg-container { display: flex; flex-direction: column; max-width: 85%; }
         .me { align-self: flex-end; }
@@ -69,8 +68,11 @@
 
 <div id="app">
     <div id="header">
-        <span>❤️ Nuestro Chat ❤️</span>
-        <button id="clear-btn" onclick="limpiar()">Limpiar Todo</button>
+        <span>❤️ Chat ❤️</span>
+        <div class="header-btns">
+            <button class="h-btn" onclick="iniciarVideo()">📹 Video</button>
+            <button class="h-btn" onclick="limpiar()">Borrar</button>
+        </div>
     </div>
     <div id="chat-box"></div>
     <div id="status"></div>
@@ -113,16 +115,18 @@
     const myId = localStorage.getItem('chat_id') || 'u' + Date.now();
     localStorage.setItem('chat_id', myId);
 
-    // --- LÓGICA LOGIN ---
     window.checkPass = () => {
-        const pass = document.getElementById('passInput').value;
-        if(pass === "9395") {
+        if(document.getElementById('passInput').value === "9395") {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
-        } else {
-            alert("Clave incorrecta");
-            document.getElementById('passInput').value = "";
-        }
+        } else { alert("Clave incorrecta"); document.getElementById('passInput').value = ""; }
+    };
+
+    // --- VIDEOLLAMADA ---
+    window.iniciarVideo = () => {
+        const roomName = "ChatPareja_Privado_9395"; 
+        window.open(`https://meet.jit.si/${roomName}`, '_blank');
+        push(chatRef, { userId: myId, text: "🎥 Te he invitado a una videollamada. Haz clic en el botón de arriba para unirte.", type: 'text', time: serverTimestamp() });
     };
 
     const input = document.getElementById('msgInput');
@@ -137,10 +141,7 @@
         replyBar.style.display = 'flex';
         input.focus();
     };
-    window.cancelarRespuesta = () => {
-        msgRespuesta = null;
-        replyBar.style.display = 'none';
-    };
+    window.cancelarRespuesta = () => { msgRespuesta = null; replyBar.style.display = 'none'; };
 
     const emojis = ["❤️","😘","😍","😊","🔥","✨","💖","🥰","🤩","🤣","🧸","🌹"];
     emojis.forEach(e => {
@@ -153,7 +154,6 @@
         s.style.display = s.style.display === 'grid' ? 'none' : 'grid';
     };
 
-    // --- AUDIO ---
     let rec; let chunks = [];
     document.getElementById('micBtn').onclick = async () => {
         if (!rec || rec.state === "inactive") {
@@ -220,10 +220,7 @@
         document.getElementById('status').textContent = t;
     });
 
-    // SEGURIDAD
-    document.onkeydown = (e) => {
-        if (e.keyCode == 123 || (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0))) return false;
-    };
+    document.onkeydown = (e) => { if (e.keyCode == 123 || (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0))) return false; };
 </script>
 </body>
 </html>
