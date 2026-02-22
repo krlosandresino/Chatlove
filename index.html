@@ -2,86 +2,93 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Chat Privado 💖</title>
     <style>
         :root { --primary: #ff4d6d; --bg: #fce4ec; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
-        body { 
-            font-family: -apple-system, system-ui, sans-serif; 
-            background: var(--bg); margin: 0; padding: 0; 
-            height: 100vh; width: 100vw; overflow: hidden;
-            display: flex; justify-content: center; 
-        }
+        html, body { height: 100%; width: 100%; background: var(--bg); overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
+        body { display: flex; justify-content: center; align-items: center; }
 
         #app { 
             display: none; flex-direction: column; 
             width: 100%; max-width: 450px; height: 100%; 
             background: white; position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
         }
 
-        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        /* LOGIN */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 10000; }
         #login-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; }
         #passInput { width: 100%; padding: 12px; margin: 20px 0; border: 2px solid #eee; border-radius: 10px; text-align: center; font-size: 20px; outline: none; }
         #loginBtn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; cursor: pointer; font-weight: bold; }
 
-        #header { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .h-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        /* HEADER */
+        #header { 
+            background: var(--primary); color: white; padding: 0 15px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            height: 60px; min-height: 60px; flex-shrink: 0;
+        }
+        .h-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
 
-        #chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
-        
+        /* CHAT BOX */
+        #chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; background: #ffffff; }
+
         .msg-container { display: flex; flex-direction: column; max-width: 85%; }
         .me { align-self: flex-end; }
         .you { align-self: flex-start; }
-        
+
         .msg { padding: 10px 15px; border-radius: 18px; font-size: 15px; word-wrap: break-word; cursor: pointer; position: relative; }
         .me .msg { background: var(--primary); color: white; border-bottom-right-radius: 2px; }
         .you .msg { background: #fff0f3; color: #590d22; border-bottom-left-radius: 2px; }
 
-        .msg-meta { display: flex; gap: 8px; font-size: 11px; color: #aaa; margin-top: 2px; padding: 0 5px; }
+        /* LINKS DE ACCIÓN (Borrar/Responder) */
+        .msg-meta { display: flex; gap: 12px; font-size: 11px; color: #888; margin-top: 5px; padding: 0 5px; }
         .me .msg-meta { justify-content: flex-end; }
-        .action-text { cursor: pointer; text-decoration: none; color: inherit; }
+        .action-link { cursor: pointer; text-decoration: none; color: inherit; font-weight: 500; }
+        .action-link:hover { color: var(--primary); text-decoration: underline; }
 
-        img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
-        audio { width: 210px; height: 45px; margin-top: 5px; display: block; filter: sepia(20%) saturate(70%) hue-rotate(300deg); }
+        img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; }
+        audio { width: 210px; height: 40px; margin-top: 5px; }
 
+        /* FOOTER */
         #footer { background: white; border-top: 1px solid #eee; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
         .tool-bar { display: flex; gap: 25px; padding: 10px 20px; }
-        .icon { font-size: 24px; cursor: pointer; }
+        .icon { font-size: 24px; cursor: pointer; transition: transform 0.1s; }
+        .icon:active { transform: scale(1.2); }
         
-        .input-row { display: flex; gap: 10px; align-items: center; padding: 5px 15px 10px; }
-        #msgInput { flex: 1; height: 40px; border: 1px solid #ddd; border-radius: 20px; padding: 0 15px; font-size: 16px; outline: none; }
-        #sendBtn { background: var(--primary); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .input-row { display: flex; gap: 10px; align-items: center; padding: 5px 15px 15px; }
+        #msgInput { flex: 1; height: 42px; border: 1px solid #ddd; border-radius: 22px; padding: 0 15px; font-size: 16px; outline: none; }
+        #sendBtn { background: var(--primary); border: none; color: white; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 
-        #emoji-shelf { display: none; grid-template-columns: repeat(8, 1fr); gap: 10px; padding: 15px; border-top: 1px solid #eee; background: #fff; max-height: 150px; overflow-y: auto; }
+        #status { height: 18px; font-size: 11px; color: var(--primary); padding: 0 15px; font-style: italic; }
+        #reply-preview { display: none; background: #f8f8f8; padding: 10px; border-left: 4px solid var(--primary); justify-content: space-between; align-items: center; }
+        #emoji-shelf { display: none; grid-template-columns: repeat(8, 1fr); gap: 10px; padding: 15px; background: #fff; border-top: 1px solid #eee; max-height: 150px; overflow-y: auto; }
         .emoji { font-size: 22px; cursor: pointer; text-align: center; }
-
-        #status { height: 20px; font-size: 12px; color: var(--primary); padding: 0 15px; font-style: italic; }
-        #reply-preview { display: none; background: #f0f0f0; padding: 10px 15px; border-left: 4px solid var(--primary); justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
 <div id="login-screen">
     <div id="login-box">
-        <h3 style="color: var(--primary); margin: 0;">🔒 Privado</h3>
-        <input type="password" id="passInput" placeholder="9395" maxlength="4" inputmode="numeric">
+        <h3 style="color: var(--primary); margin-bottom: 10px;">🔒 Privado</h3>
+        <input type="password" id="passInput" placeholder="Clave" maxlength="4" inputmode="numeric">
         <button id="loginBtn" onclick="checkPass()">Entrar</button>
     </div>
 </div>
 
 <div id="app">
-    <div id="header">
-        <span>💖 Nuestro Chat</span>
+    <header id="header">
+        <span style="font-weight: bold; font-size: 18px;">💖 Nuestro Chat</span>
         <div style="display:flex; gap:8px;">
             <button class="h-btn" onclick="iniciarVideo()">📹 Video</button>
-            <button class="h-btn" onclick="limpiar()">Borrar</button>
+            <button class="h-btn" onclick="limpiarChat()">Borrar</button>
         </div>
-    </div>
+    </header>
     
-    <div id="chat-box"></div>
+    <main id="chat-box"></main>
+    
     <div id="status"></div>
     
     <div id="reply-preview">
@@ -89,20 +96,19 @@
         <span onclick="cancelarRespuesta()" style="cursor:pointer; font-weight:bold; color:var(--primary); padding:5px;">✕</span>
     </div>
 
-    <div id="emoji-shelf"></div>
-
-    <div id="footer">
+    <footer id="footer">
+        <div id="emoji-shelf"></div>
         <div class="tool-bar">
             <span class="icon" onclick="document.getElementById('fileInput').click()">📷</span>
             <span class="icon" id="micBtn">🎙️</span>
-            <span class="icon" onclick="toggleEmoji()">😊</span>
+            <span class="icon" onclick="toggleEmojis()">😊</span>
         </div>
         <div class="input-row">
             <input type="file" id="fileInput" accept="image/*" style="display:none">
-            <input type="text" id="msgInput" placeholder="Escribe algo..." autocomplete="off">
+            <input type="text" id="msgInput" placeholder="Escribe un mensaje..." autocomplete="off">
             <button id="sendBtn" onclick="enviar()">➤</button>
         </div>
-    </div>
+    </footer>
 </div>
 
 <script type="module">
@@ -132,8 +138,8 @@
         if(document.getElementById('passInput').value === "9395") {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
-            box.scrollTop = box.scrollHeight;
-        } else { alert("Error"); }
+            setTimeout(() => { box.scrollTop = box.scrollHeight; }, 300);
+        } else { alert("Clave Incorrecta"); }
     };
 
     window.iniciarVideo = () => window.open(`https://meet.jit.si/ChatPrivado_9395`, '_blank');
@@ -147,6 +153,7 @@
     };
     window.cancelarRespuesta = () => { msgRespuesta = null; document.getElementById('reply-preview').style.display = 'none'; };
 
+    // Emojis
     const emojis = ["❤️","😘","😍","😊","🔥","✨","💖","🥰","🤩","🤣","🧸","🌹","😜","😇","💤","🌸"];
     const shelf = document.getElementById('emoji-shelf');
     emojis.forEach(e => {
@@ -154,35 +161,28 @@
         span.onclick = () => { input.value += e; input.focus(); };
         shelf.appendChild(span);
     });
-    window.toggleEmoji = () => { shelf.style.display = shelf.style.display === 'grid' ? 'none' : 'grid'; box.scrollTop = box.scrollHeight; };
+    window.toggleEmojis = () => { shelf.style.display = shelf.style.display === 'grid' ? 'none' : 'grid'; box.scrollTop = box.scrollHeight; };
 
-    // --- AUDIO: LÓGICA REFORZADA ---
+    // --- AUDIO ---
     let rec; let chunks = [];
     document.getElementById('micBtn').onclick = async () => {
         if (!rec || rec.state === "inactive") {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // Forzamos un formato compatible
                 rec = new MediaRecorder(stream);
                 chunks = [];
-                rec.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+                rec.ondataavailable = e => chunks.push(e.data);
                 rec.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'audio/webm' });
                     const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = () => {
-                        const base64data = reader.result;
-                        push(chatRef, { userId: myId, audioData: base64data, type: 'audio', time: serverTimestamp() });
-                    };
+                    reader.readAsDataURL(new Blob(chunks, { type: 'audio/webm' }));
+                    reader.onloadend = () => push(chatRef, { userId: myId, audioData: reader.result, type: 'audio', time: serverTimestamp() });
                     stream.getTracks().forEach(t => t.stop());
                 };
-                rec.start(); 
-                document.getElementById('micBtn').innerText = '🛑';
+                rec.start(); document.getElementById('micBtn').innerText = '🛑';
                 set(ref(db, 'status/'+myId), { action: 'grabando' });
-            } catch(e) { alert("Micro bloqueado. Revisa los permisos."); }
+            } catch(e) { alert("Micro bloqueado"); }
         } else { 
-            rec.stop(); 
-            document.getElementById('micBtn').innerText = '🎙️'; 
+            rec.stop(); document.getElementById('micBtn').innerText = '🎙️'; 
             set(ref(db, 'status/'+myId), null);
         }
     };
@@ -201,38 +201,41 @@
         r.onload = (ev) => push(chatRef, { userId: myId, imageData: ev.target.result, type: 'image' });
     };
 
+    // FUNCIÓN PARA BORRAR MENSAJE INDIVIDUAL
+    window.borrarMsg = (key) => {
+        if(confirm("¿Borrar este mensaje?")) {
+            remove(ref(db, 'messages/' + key));
+        }
+    };
+
     onChildAdded(chatRef, (snap) => {
         const d = snap.val(); const k = snap.key;
         const div = document.createElement('div');
         div.className = `msg-container ${d.userId === myId ? 'me' : 'you'}`;
         div.id = 'msg-'+k;
 
-        let content = d.audioData ? `<audio controls preload="auto" src="${d.audioData}"></audio>` : 
-                      d.imageData ? `<img src="${d.imageData}">` : `<span>${d.text}</span>`;
+        let content = d.audioData ? `<audio controls src="${d.audioData}"></audio>` : 
+                      d.imageData ? `<img src="${d.imageData}" onclick="window.open('${d.imageData}')">` : `<span>${d.text}</span>`;
         
         div.innerHTML = `
             <div class="msg" onclick="prepararRespuesta('${d.text || 'Archivo'}')">
-                ${d.replyTo ? `<div style="font-size:11px; opacity:0.7; border-left:2px solid; padding-left:5px; margin-bottom:5px; color: #666;">${d.replyTo}</div>` : ''}
+                ${d.replyTo ? `<div style="font-size:11px; opacity:0.6; border-left:2px solid; padding-left:5px; margin-bottom:5px;">${d.replyTo}</div>` : ''}
                 ${content}
             </div>
             <div class="msg-meta">
-                ${d.imageData ? `<a href="${d.imageData}" download="img.png" class="action-text">Descargar</a> • ` : ''}
-                <span class="action-text" onclick="prepararRespuesta('${d.text || 'Archivo'}')">Responder</span>
-                ${d.userId === myId ? ` • <span class="action-text" onclick="remove(ref(db, 'messages/${k}'))">Borrar</span>` : ''}
-            </div>
-        `;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
+                <span class="action-link" onclick="prepararRespuesta('${d.text || 'Archivo'}')">Responder</span>
+                ${d.userId === myId ? ` • <span class="action-link" onclick="borrarMsg('${k}')">Borrar</span>` : ''}
+                ${d.imageData ? ` • <a href="${d.imageData}" download="imagen.png" class="action-link">Guardar</a>` : ''}
+            </div>`;
+        box.appendChild(div); box.scrollTop = box.scrollHeight;
     });
 
     onChildRemoved(chatRef, (s) => document.getElementById('msg-'+s.key)?.remove());
-    window.limpiar = () => confirm("¿Borrar chat?") && remove(chatRef);
+    window.limpiarChat = () => confirm("¿Borrar todo el chat?") && remove(chatRef);
 
-    // SEGURIDAD
-    document.addEventListener('keydown', function(e) {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
-            e.preventDefault(); return false;
-        }
+    // SEGURIDAD PC
+    document.addEventListener('keydown', e => { 
+        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) e.preventDefault(); 
     });
 
     input.oninput = () => {
