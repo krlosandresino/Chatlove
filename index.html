@@ -3,128 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nuestro Espacio Privado 💖</title>
+    <title>Nuestro Chat 💖</title>
     <style>
-        :root { 
-            --primary: #ff4d6d; 
-            --secondary: #fff0f3; 
-            --text-dark: #590d22;
-        }
+        :root { --primary: #ff4d6d; --secondary: #fff0f3; --text-dark: #590d22; }
+        body { font-family: 'Segoe UI', sans-serif; background: #fce4ec; margin: 0; display: flex; justify-content: center; height: 100vh; }
+        #app { width: 100%; max-width: 450px; display: flex; flex-direction: column; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        #header { background: var(--primary); color: white; padding: 15px; text-align: center; font-weight: bold; }
+        #chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+        .msg { padding: 10px 14px; border-radius: 18px; max-width: 75%; font-size: 15px; word-wrap: break-word; }
+        .me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .you { align-self: flex-start; background: var(--secondary); color: var(--text-dark); border-bottom-left-radius: 2px; }
+        .msg img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
         
-        body { 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-            background: linear-gradient(135deg, #fce4ec 0%, #ffebee 100%);
-            margin: 0; 
-            display: flex; 
-            justify-content: center; 
-            height: 100vh; 
-        }
-
-        #app { 
-            width: 100%; 
-            max-width: 450px; 
-            display: flex; 
-            flex-direction: column; 
-            background: white; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        #header { 
-            background: var(--primary); 
-            color: white; 
-            padding: 18px; 
-            text-align: center; 
-            font-size: 1.1em; 
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-
-        #chat-box { 
-            flex: 1; 
-            padding: 20px; 
-            overflow-y: auto; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 12px;
-            background-image: radial-gradient(#ff4d6d11 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-
-        .msg { 
-            padding: 10px 16px; 
-            border-radius: 20px; 
-            max-width: 80%; 
-            font-size: 15px; 
-            line-height: 1.4; 
-            word-wrap: break-word;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .me { 
-            align-self: flex-end; 
-            background: var(--primary); 
-            color: white; 
-            border-bottom-right-radius: 2px; 
-        }
-
-        .you { 
-            align-self: flex-start; 
-            background: var(--secondary); 
-            color: var(--text-dark); 
-            border-bottom-left-radius: 2px; 
-        }
-
-        #input-area { 
-            padding: 15px; 
-            display: flex; 
-            gap: 8px; 
-            border-top: 1px solid #f0f0f0;
-            background: #fff;
-        }
-
-        input { 
-            flex: 1; 
-            border: 1px solid #eee; 
-            padding: 12px 18px; 
-            border-radius: 30px; 
-            outline: none; 
-            background: #fafafa;
-            transition: 0.3s;
-        }
-
-        input:focus { border-color: var(--primary); background: #fff; }
-
-        button { 
-            background: var(--primary); 
-            border: none; 
-            color: white; 
-            width: 45px;
-            height: 45px;
-            border-radius: 50%; 
-            cursor: pointer; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2em;
-            transition: transform 0.2s;
-        }
+        #input-area { padding: 10px; display: flex; flex-direction: column; border-top: 1px solid #eee; }
+        .controls { display: flex; gap: 12px; margin-bottom: 8px; font-size: 1.3em; padding-left: 5px; }
+        .controls span { cursor: pointer; }
         
-        button:active { transform: scale(0.9); }
+        .input-row { display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { flex: 1; border: 1px solid #eee; padding: 10px 15px; border-radius: 20px; outline: none; }
+        button { background: var(--primary); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+        #fileInput { display: none; }
     </style>
 </head>
 <body>
 
 <div id="app">
-    <div id="header">❤️ Nuestro Chat Privado ❤️</div>
-    <div id="chat-box" id="chatBox"></div>
+    <div id="header">❤️ Nuestro Espacio Privado ❤️</div>
+    <div id="chat-box"></div>
     <div id="input-area">
-        <input type="text" id="msgInput" placeholder="Escribe un mensaje..." autocomplete="off">
-        <button id="sendBtn">➤</button>
+        <div class="controls">
+            <span onclick="addEmoji('❤️')">❤️</span>
+            <span onclick="addEmoji('😘')">😘</span>
+            <span onclick="addEmoji('😍')">😍</span>
+            <span onclick="document.getElementById('fileInput').click()">📷</span>
+        </div>
+        <div class="input-row">
+            <input type="file" id="fileInput" accept="image/*">
+            <input type="text" id="msgInput" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button id="sendBtn">➤</button>
+        </div>
     </div>
 </div>
 
@@ -132,7 +49,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getDatabase, ref, push, onChildAdded, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  // Tus credenciales actualizadas
   const firebaseConfig = {
     apiKey: "AIzaSyClp2tVcoeIE_ZOedIzP6zyEXEoP9Em0tM",
     authDomain: "chatpareja-3fbce.firebaseapp.com",
@@ -143,56 +59,63 @@
     appId: "1:954583350974:web:8a1b6dfdaddd1b54d728ef"
   };
 
-  // Inicializar Firebase
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const chatRef = ref(db, 'messages');
 
-  // Sistema simple de ID de usuario para distinguir burbujas
   if(!localStorage.getItem('chat_user_id')) {
-      localStorage.setItem('chat_user_id', 'user_' + Math.random().toString(36).substr(2, 9));
+      localStorage.setItem('chat_user_id', 'user_' + Math.floor(Math.random() * 1000000));
   }
   const myId = localStorage.getItem('chat_user_id');
 
   const chatBox = document.getElementById('chat-box');
   const input = document.getElementById('msgInput');
-  const btn = document.getElementById('sendBtn');
+  const fileInput = document.getElementById('fileInput');
 
-  // Función para enviar
-  const sendMessage = () => {
-    const text = input.value.trim();
-    if(text) {
-      push(chatRef, {
-        userId: myId,
-        text: text,
-        time: serverTimestamp()
-      });
+  // Enviar Texto
+  document.getElementById('sendBtn').onclick = () => {
+    if(input.value.trim()) {
+      push(chatRef, { userId: myId, text: input.value, type: 'text', time: serverTimestamp() });
       input.value = '';
     }
   };
 
-  btn.onclick = sendMessage;
-  
-  // Enviar con la tecla Enter
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-  });
+  // Enviar Foto (Convertida a Base64)
+  fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if(file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            push(chatRef, { 
+                userId: myId, 
+                imageData: event.target.result, 
+                type: 'image', 
+                time: serverTimestamp() 
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+  };
 
-  // Escuchar mensajes nuevos en tiempo real
+  // Mostrar Mensajes
   onChildAdded(chatRef, (snapshot) => {
     const data = snapshot.val();
     const div = document.createElement('div');
-    
-    // Si el ID coincide, es "mío" (derecha), si no, es "tuyo" (izquierda)
     div.className = `msg ${data.userId === myId ? 'me' : 'you'}`;
-    div.textContent = data.text;
+    
+    if(data.type === 'image') {
+        const img = document.createElement('img');
+        img.src = data.imageData;
+        div.appendChild(img);
+    } else {
+        div.textContent = data.text;
+    }
     
     chatBox.appendChild(div);
-    
-    // Auto-scroll al último mensaje
     chatBox.scrollTop = chatBox.scrollHeight;
   });
-</script>
 
+  window.addEmoji = (emoji) => { input.value += emoji; input.focus(); };
+</script>
 </body>
 </html>
