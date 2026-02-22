@@ -245,7 +245,7 @@
     };
     onValue(ref(db, 'status'), (s) => {
         const d = s.val(); let t = "";
-        for(let id in d) if(id !== myId) t = d[id]?.action === 'grabando' ? "Grabando..." : "Escribiendo...";
+        for(let id in d) if(id !== myId) t = d[id]?.action === 'grabando' ? "Tu pareja está Grabando..." : "Tu pareja está Escribiendo...";
         document.getElementById('status').textContent = t;
     });
 </script>
