@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestro Espacio Privado 💖</title>
+    <style>
+        :root { 
+            --primary: #ff4d6d; 
+            --secondary: #fff0f3; 
+            --text-dark: #590d22;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: linear-gradient(135deg, #fce4ec 0%, #ffebee 100%);
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            height: 100vh; 
+        }
+
+        #app { 
+            width: 100%; 
+            max-width: 450px; 
+            display: flex; 
+            flex-direction: column; 
+            background: white; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        #header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 18px; 
+            text-align: center; 
+            font-size: 1.1em; 
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        #chat-box { 
+            flex: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px;
+            background-image: radial-gradient(#ff4d6d11 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .msg { 
+            padding: 10px 16px; 
+            border-radius: 20px; 
+            max-width: 80%; 
+            font-size: 15px; 
+            line-height: 1.4; 
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .me { 
+            align-self: flex-end; 
+            background: var(--primary); 
+            color: white; 
+            border-bottom-right-radius: 2px; 
+        }
+
+        .you { 
+            align-self: flex-start; 
+            background: var(--secondary); 
+            color: var(--text-dark); 
+            border-bottom-left-radius: 2px; 
+        }
+
+        #input-area { 
+            padding: 15px; 
+            display: flex; 
+            gap: 8px; 
+            border-top: 1px solid #f0f0f0;
+            background: #fff;
+        }
+
+        input { 
+            flex: 1; 
+            border: 1px solid #eee; 
+            padding: 12px 18px; 
+            border-radius: 30px; 
+            outline: none; 
+            background: #fafafa;
+            transition: 0.3s;
+        }
+
+        input:focus { border-color: var(--primary); background: #fff; }
+
+        button { 
+            background: var(--primary); 
+            border: none; 
+            color: white; 
+            width: 45px;
+            height: 45px;
+            border-radius: 50%; 
+            cursor: pointer; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            transition: transform 0.2s;
+        }
+        
+        button:active { transform: scale(0.9); }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="header">❤️ Nuestro Chat Privado ❤️</div>
+    <div id="chat-box" id="chatBox"></div>
+    <div id="input-area">
+        <input type="text" id="msgInput" placeholder="Escribe un mensaje..." autocomplete="off">
+        <button id="sendBtn">➤</button>
+    </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  // Tus credenciales actualizadas
+  const firebaseConfig = {
+    apiKey: "AIzaSyClp2tVcoeIE_ZOedIzP6zyEXEoP9Em0tM",
+    authDomain: "chatpareja-3fbce.firebaseapp.com",
+    databaseURL: "https://chatpareja-3fbce-default-rtdb.firebaseio.com",
+    projectId: "chatpareja-3fbce",
+    storageBucket: "chatpareja-3fbce.firebasestorage.app",
+    messagingSenderId: "954583350974",
+    appId: "1:954583350974:web:8a1b6dfdaddd1b54d728ef"
+  };
+
+  // Inicializar Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const chatRef = ref(db, 'messages');
+
+  // Sistema simple de ID de usuario para distinguir burbujas
+  if(!localStorage.getItem('chat_user_id')) {
+      localStorage.setItem('chat_user_id', 'user_' + Math.random().toString(36).substr(2, 9));
+  }
+  const myId = localStorage.getItem('chat_user_id');
+
+  const chatBox = document.getElementById('chat-box');
+  const input = document.getElementById('msgInput');
+  const btn = document.getElementById('sendBtn');
+
+  // Función para enviar
+  const sendMessage = () => {
+    const text = input.value.trim();
+    if(text) {
+      push(chatRef, {
+        userId: myId,
+        text: text,
+        time: serverTimestamp()
+      });
+      input.value = '';
+    }
+  };
+
+  btn.onclick = sendMessage;
+  
+  // Enviar con la tecla Enter
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+
+  // Escuchar mensajes nuevos en tiempo real
+  onChildAdded(chatRef, (snapshot) => {
+    const data = snapshot.val();
+    const div = document.createElement('div');
+    
+    // Si el ID coincide, es "mío" (derecha), si no, es "tuyo" (izquierda)
+    div.className = `msg ${data.userId === myId ? 'me' : 'you'}`;
+    div.textContent = data.text;
+    
+    chatBox.appendChild(div);
+    
+    // Auto-scroll al último mensaje
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+</script>
+
+</body>
+</html>
