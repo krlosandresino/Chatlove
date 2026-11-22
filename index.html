@@ -8,7 +8,7 @@
         :root { --primary: #ff4d6d; --bg: #fce4ec; }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
-        html, body { height: 100%; width: 100%; background: var(--bg); overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
+        html, body { height: 100%; height: 100dvh; width: 100%; background: var(--bg); overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
         body { display: flex; justify-content: center; align-items: center; }
 
         #app { 
@@ -86,6 +86,23 @@
             border-radius: 10px; margin-top: 0; cursor: default;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
+
+        /* PAGINACIÓN Y SCROLL INTELIGENTE */
+        #load-more-btn {
+            display: none; align-self: center;
+            background: #fff0f3; color: var(--primary);
+            border: 1px solid rgba(255, 77, 109, 0.3);
+            padding: 6px 14px; border-radius: 16px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            flex-shrink: 0;
+        }
+        #scroll-down-btn {
+            display: none; position: absolute; right: 16px; bottom: 130px;
+            background: var(--primary); color: white; border: none;
+            padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: bold;
+            box-shadow: 0 4px 12px rgba(255, 77, 109, 0.35);
+            cursor: pointer; z-index: 500;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -107,7 +124,10 @@
         </div>
     </header>
     
-    <main id="chat-box"></main>
+    <main id="chat-box">
+        <button id="load-more-btn" onclick="cargarAnteriores()">⬆ Cargar mensajes anteriores</button>
+    </main>
+    <button id="scroll-down-btn" onclick="bajarAlFinal()">↓ Nuevo mensaje</button>
     <div id="status"></div>
     <div id="reply-preview">
         <div id="reply-text" style="font-size:12px; color:#666; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
@@ -139,7 +159,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove, set, onValue, serverTimestamp, query, orderByKey, limitToLast, endBefore, get, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyClp2tVcoeIE_ZOedIzP6zyEXEoP9Em0tM",
@@ -163,8 +183,27 @@
     let myId = localStorage.getItem('chat_id') || '';
     let chatIniciado = false;
 
+    // --- ESTADO DE PAGINACIÓN, AUDIO Y ESCRITURA ---
+    const PAGE_SIZE = 40;
+    const loadedKeys = new Set();
+    let oldestKey = null;
+    let cargandoAnteriores = false;
+    let estaEscribiendo = false;
+    let audioActivo = null;
+
     const box = document.getElementById('chat-box');
     const input = document.getElementById('msgInput');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const scrollDownBtn = document.getElementById('scroll-down-btn');
+
+    const estaCercaDelFinal = () => (box.scrollHeight - box.scrollTop - box.clientHeight) < 120;
+    window.bajarAlFinal = () => {
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+        scrollDownBtn.style.display = 'none';
+    };
+    box.addEventListener('scroll', () => {
+        if (estaCercaDelFinal()) scrollDownBtn.style.display = 'none';
+    });
 
     window.checkPass = () => {
         const pinIngresado = document.getElementById('passInput').value;
@@ -212,22 +251,37 @@
     });
     window.toggleEmojis = () => { shelf.style.display = shelf.style.display === 'grid' ? 'none' : 'grid'; box.scrollTop = box.scrollHeight; };
 
-    // --- AUDIO ---
+    // --- AUDIO COMPATIBLE Y LIGERO ---
+    const detectarMimeAudio = () => {
+        const tipos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+        return tipos.find(t => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) || '';
+    };
+
     let rec; let chunks = [];
     document.getElementById('micBtn').onclick = async () => {
         if (!rec || rec.state === "inactive") {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                rec = new MediaRecorder(stream);
+                const mimeType = detectarMimeAudio();
+                const opciones = { audioBitsPerSecond: 32000 };
+                if (mimeType) opciones.mimeType = mimeType;
+                try {
+                    rec = new MediaRecorder(stream, opciones);
+                } catch {
+                    rec = new MediaRecorder(stream);
+                }
                 chunks = [];
-                rec.ondataavailable = e => chunks.push(e.data);
+                rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
                 rec.onstop = () => {
+                    const tipoFinal = rec.mimeType || mimeType || 'audio/webm';
                     const reader = new FileReader();
-                    reader.readAsDataURL(new Blob(chunks, { type: 'audio/webm' }));
+                    reader.readAsDataURL(new Blob(chunks, { type: tipoFinal }));
                     reader.onloadend = () => push(chatRef, { userId: myId, audioData: reader.result, type: 'audio', time: serverTimestamp() });
                     stream.getTracks().forEach(t => t.stop());
                 };
                 rec.start(); document.getElementById('micBtn').innerText = '🛑';
+                estaEscribiendo = false;
+                clearTimeout(window.tOut);
                 set(ref(db, 'status/'+myId), { action: 'grabando' });
             } catch(e) { alert("Micro bloqueado"); }
         } else { 
@@ -241,9 +295,19 @@
         if(t) {
             push(chatRef, { userId: myId, text: t, replyTo: msgRespuesta, type: 'text', time: serverTimestamp() });
             input.value = ''; cancelarRespuesta(); shelf.style.display = 'none';
+            if (estaEscribiendo) {
+                estaEscribiendo = false;
+                clearTimeout(window.tOut);
+                set(ref(db, 'status/'+myId), null);
+            }
         }
     };
-    input.onkeypress = (e) => { if(e.key === 'Enter') enviar(); };
+    input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            e.preventDefault();
+            enviar();
+        }
+    });
 
     // --- COMPRESIÓN DE IMÁGENES ---
     const comprimirImagen = (file, maxDim = 1000, calidad = 0.7) => new Promise((resolve) => {
@@ -285,37 +349,187 @@
         }
     };
 
-    function iniciarChat() {
+    // --- RENDERIZADO SEGURO (SIN XSS NI FALLOS CON COMILLAS) ---
+    const crearElementoMensaje = (k, d, mantenerAbajoAlCargarImg = false) => {
+        const div = document.createElement('div');
+        div.className = `msg-container ${d.userId === myId ? 'me' : 'you'}`;
+        div.id = 'msg-' + k;
+
+        const textoRespuesta = d.text || 'Archivo';
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg';
+        msgDiv.addEventListener('click', () => prepararRespuesta(textoRespuesta));
+
+        if (d.replyTo) {
+            const replyDiv = document.createElement('div');
+            replyDiv.style.cssText = 'font-size:11px; opacity:0.6; border-left:2px solid; padding-left:5px; margin-bottom:5px;';
+            replyDiv.textContent = d.replyTo;
+            msgDiv.appendChild(replyDiv);
+        }
+
+        if (d.audioData) {
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = d.audioData;
+            audio.addEventListener('click', (e) => e.stopPropagation());
+            audio.addEventListener('play', () => {
+                if (audioActivo && audioActivo !== audio) audioActivo.pause();
+                audioActivo = audio;
+            });
+            msgDiv.appendChild(audio);
+        } else if (d.imageData) {
+            const img = document.createElement('img');
+            img.src = d.imageData;
+            img.loading = 'lazy';
+            img.addEventListener('click', (e) => {
+                e.stopPropagation();
+                abrirLightbox(img.src);
+            });
+            if (mantenerAbajoAlCargarImg) {
+                img.addEventListener('load', () => {
+                    if (estaCercaDelFinal()) box.scrollTop = box.scrollHeight;
+                }, { once: true });
+            }
+            msgDiv.appendChild(img);
+        } else {
+            const span = document.createElement('span');
+            span.textContent = d.text || '';
+            msgDiv.appendChild(span);
+        }
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'msg-meta';
+
+        const replyLink = document.createElement('span');
+        replyLink.className = 'action-link';
+        replyLink.textContent = 'Responder';
+        replyLink.addEventListener('click', () => prepararRespuesta(textoRespuesta));
+        metaDiv.appendChild(replyLink);
+
+        if (d.userId === myId) {
+            metaDiv.appendChild(document.createTextNode(' • '));
+            const delLink = document.createElement('span');
+            delLink.className = 'action-link';
+            delLink.textContent = 'Borrar';
+            delLink.addEventListener('click', () => borrarMsg(k));
+            metaDiv.appendChild(delLink);
+        }
+
+        div.appendChild(msgDiv);
+        div.appendChild(metaDiv);
+        return div;
+    };
+
+    window.cargarAnteriores = async () => {
+        if (!oldestKey || cargandoAnteriores) return;
+        cargandoAnteriores = true;
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = 'Cargando...';
+
+        const prevHeight = box.scrollHeight;
+        const prevTop = box.scrollTop;
+
+        try {
+            const snap = await get(query(chatRef, orderByKey(), endBefore(oldestKey), limitToLast(PAGE_SIZE + 1)));
+            if (!snap.exists()) {
+                loadMoreBtn.style.display = 'none';
+            } else {
+                const items = [];
+                snap.forEach((child) => { items.push({ key: child.key, val: child.val() }); });
+
+                const hayMas = items.length > PAGE_SIZE;
+                if (hayMas) items.shift();
+
+                if (items.length > 0) {
+                    oldestKey = items[0].key;
+                    const frag = document.createDocumentFragment();
+                    items.forEach(({ key, val }) => {
+                        if (!loadedKeys.has(key)) {
+                            loadedKeys.add(key);
+                            frag.appendChild(crearElementoMensaje(key, val, false));
+                        }
+                    });
+                    loadMoreBtn.insertAdjacentElement('afterend', document.createElement('span'));
+                    const marcador = loadMoreBtn.nextSibling;
+                    box.insertBefore(frag, marcador);
+                    marcador.remove();
+                    box.scrollTop = prevTop + (box.scrollHeight - prevHeight);
+                }
+
+                loadMoreBtn.style.display = hayMas ? 'block' : 'none';
+            }
+        } finally {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = '⬆ Cargar mensajes anteriores';
+            cargandoAnteriores = false;
+        }
+    };
+
+    async function iniciarChat() {
         chatIniciado = true;
 
-        onChildAdded(chatRef, (snap) => {
-            const d = snap.val(); const k = snap.key;
-            
-            // VIBRAR SOLO SI EL MENSAJE NO ES MÍO
+        // Limpieza automática del estado si se cierra la app o cae la conexión
+        onValue(ref(db, '.info/connected'), (snap) => {
+            if (snap.val() === true && myId) {
+                onDisconnect(ref(db, 'status/' + myId)).remove();
+            }
+        });
+
+        // 1. Carga inicial paginada (sin vibraciones fantasma)
+        const snapInicial = await get(query(chatRef, orderByKey(), limitToLast(PAGE_SIZE + 1)));
+        if (snapInicial.exists()) {
+            const items = [];
+            snapInicial.forEach((child) => { items.push({ key: child.key, val: child.val() }); });
+            const hayMas = items.length > PAGE_SIZE;
+            if (hayMas) items.shift();
+
+            if (items.length > 0) {
+                oldestKey = items[0].key;
+                const frag = document.createDocumentFragment();
+                items.forEach(({ key, val }) => {
+                    loadedKeys.add(key);
+                    frag.appendChild(crearElementoMensaje(key, val, true));
+                });
+                box.appendChild(frag);
+            }
+            loadMoreBtn.style.display = hayMas ? 'block' : 'none';
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // 2. Escucha en tiempo real solo para mensajes nuevos
+        onChildAdded(query(chatRef, orderByKey(), limitToLast(PAGE_SIZE)), (snap) => {
+            const k = snap.key;
+            if (loadedKeys.has(k)) return;
+            loadedKeys.add(k);
+            if (!oldestKey || k < oldestKey) oldestKey = k;
+
+            const d = snap.val();
+            const cerca = estaCercaDelFinal();
+
+            // VIBRAR SOLO SI EL MENSAJE ES NUEVO Y NO ES MÍO
             if (d.userId !== myId) {
                 vibrarNuevoMensaje();
             }
 
-            const div = document.createElement('div');
-            div.className = `msg-container ${d.userId === myId ? 'me' : 'you'}`;
-            div.id = 'msg-'+k;
+            const el = crearElementoMensaje(k, d, d.userId === myId || cerca);
+            box.appendChild(el);
 
-            let content = d.audioData ? `<audio controls src="${d.audioData}"></audio>` : 
-                          d.imageData ? `<img src="${d.imageData}" onclick="event.stopPropagation(); abrirLightbox(this.src)">` : `<span>${d.text}</span>`;
-            
-            div.innerHTML = `
-                <div class="msg" onclick="prepararRespuesta('${d.text || 'Archivo'}')">
-                    ${d.replyTo ? `<div style="font-size:11px; opacity:0.6; border-left:2px solid; padding-left:5px; margin-bottom:5px;">${d.replyTo}</div>` : ''}
-                    ${content}
-                </div>
-                <div class="msg-meta">
-                    <span class="action-link" onclick="prepararRespuesta('${d.text || 'Archivo'}')">Responder</span>
-                    ${d.userId === myId ? ` • <span class="action-link" onclick="borrarMsg('${k}')">Borrar</span>` : ''}
-                </div>`;
-            box.appendChild(div); box.scrollTop = box.scrollHeight;
+            if (d.userId === myId || cerca) {
+                box.scrollTop = box.scrollHeight;
+                scrollDownBtn.style.display = 'none';
+            } else {
+                scrollDownBtn.style.display = 'block';
+            }
         });
 
-        onChildRemoved(chatRef, (s) => document.getElementById('msg-'+s.key)?.remove());
+        onChildRemoved(chatRef, (s) => {
+            loadedKeys.delete(s.key);
+            document.getElementById('msg-' + s.key)?.remove();
+            if (loadedKeys.size === 0) {
+                oldestKey = null;
+                loadMoreBtn.style.display = 'none';
+            }
+        });
 
         onValue(ref(db, 'status'), (s) => {
             const d = s.val(); let t = "";
@@ -326,10 +540,18 @@
 
     window.limpiarChat = () => confirm("¿Borrar todo?") && remove(chatRef);
 
+    // Control optimizado de escrituras en "Escribiendo..."
     input.oninput = () => {
-        set(ref(db, 'status/'+myId), { action: 'escribiendo' });
+        if (!myId) return;
+        if (!estaEscribiendo) {
+            estaEscribiendo = true;
+            set(ref(db, 'status/' + myId), { action: 'escribiendo' });
+        }
         clearTimeout(window.tOut);
-        window.tOut = setTimeout(() => set(ref(db, 'status/'+myId), null), 2000);
+        window.tOut = setTimeout(() => {
+            estaEscribiendo = false;
+            set(ref(db, 'status/' + myId), null);
+        }, 2000);
     };
 </script>
 </body>
