@@ -64,6 +64,28 @@
         #reply-preview { display: none; background: #f8f8f8; padding: 10px; border-left: 4px solid var(--primary); justify-content: space-between; align-items: center; }
         #emoji-shelf { display: none; grid-template-columns: repeat(8, 1fr); gap: 10px; padding: 15px; background: #fff; border-top: 1px solid #eee; max-height: 150px; overflow-y: auto; }
         .emoji { font-size: 22px; cursor: pointer; text-align: center; }
+
+        /* LIGHTBOX */
+        #lightbox-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.92); z-index: 20000;
+            flex-direction: column; justify-content: center; align-items: center;
+            padding: 20px;
+        }
+        #lightbox-actions {
+            position: absolute; top: 15px; right: 15px;
+            display: flex; gap: 10px; align-items: center;
+        }
+        .lb-btn {
+            background: rgba(255,255,255,0.2); color: white; border: none;
+            padding: 8px 14px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; font-weight: bold; text-decoration: none;
+        }
+        #lightbox-img {
+            max-width: 95%; max-height: 82vh; object-fit: contain;
+            border-radius: 10px; margin-top: 0; cursor: default;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -107,6 +129,14 @@
     </footer>
 </div>
 
+<div id="lightbox-modal" onclick="if(event.target === this) cerrarLightbox()">
+    <div id="lightbox-actions">
+        <a id="lightbox-download" class="lb-btn" download="foto-chat.jpg">⬇ Descargar</a>
+        <button class="lb-btn" onclick="cerrarLightbox()">✕</button>
+    </div>
+    <img id="lightbox-img" src="" alt="Vista previa">
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -124,22 +154,44 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const chatRef = ref(db, 'messages');
-    const myId = localStorage.getItem('chat_id') || 'u' + Date.now();
-    localStorage.setItem('chat_id', myId);
+
+    // --- IDENTIDAD FIJA CON DOS PINS ---
+    const PINS = {
+        "9395": "pareja_1",
+        "9593": "pareja_2"
+    };
+    let myId = localStorage.getItem('chat_id') || '';
+    let chatIniciado = false;
 
     const box = document.getElementById('chat-box');
     const input = document.getElementById('msgInput');
 
     window.checkPass = () => {
-        if(document.getElementById('passInput').value === "9395") {
+        const pinIngresado = document.getElementById('passInput').value;
+        if(PINS[pinIngresado]) {
+            myId = PINS[pinIngresado];
+            localStorage.setItem('chat_id', myId);
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
+            if(!chatIniciado) iniciarChat();
             setTimeout(() => { box.scrollTop = box.scrollHeight; }, 300);
         } else { alert("Clave Incorrecta"); }
     };
     document.getElementById('passInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') checkPass(); });
 
     window.iniciarVideo = () => window.open(`https://meet.jit.si/ChatPrivado_9395`, '_blank');
+
+    // --- LIGHTBOX ---
+    window.abrirLightbox = (src) => {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox-download').href = src;
+        document.getElementById('lightbox-modal').style.display = 'flex';
+    };
+    window.cerrarLightbox = () => {
+        document.getElementById('lightbox-modal').style.display = 'none';
+        document.getElementById('lightbox-img').src = '';
+    };
+    document.addEventListener('keydown', (e) => { if(e.key === 'Escape') cerrarLightbox(); });
 
     let msgRespuesta = null;
     window.prepararRespuesta = (t) => {
@@ -193,9 +245,35 @@
     };
     input.onkeypress = (e) => { if(e.key === 'Enter') enviar(); };
 
-    document.getElementById('fileInput').onchange = (e) => {
-        const r = new FileReader(); r.readAsDataURL(e.target.files[0]);
-        r.onload = (ev) => push(chatRef, { userId: myId, imageData: ev.target.result, type: 'image' });
+    // --- COMPRESIÓN DE IMÁGENES ---
+    const comprimirImagen = (file, maxDim = 1000, calidad = 0.7) => new Promise((resolve) => {
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = (ev) => {
+            const img = new Image();
+            img.src = ev.target.result;
+            img.onload = () => {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+                    else { w = Math.round((w * maxDim) / h); h = maxDim; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', calidad));
+            };
+        };
+    });
+
+    document.getElementById('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const comprimida = await comprimirImagen(file);
+        push(chatRef, { userId: myId, imageData: comprimida, type: 'image', time: serverTimestamp() });
+        e.target.value = '';
     };
 
     window.borrarMsg = (key) => { if(confirm("¿Borrar mensaje?")) remove(ref(db, 'messages/' + key)); };
@@ -207,34 +285,45 @@
         }
     };
 
-    onChildAdded(chatRef, (snap) => {
-        const d = snap.val(); const k = snap.key;
-        
-        // VIBRAR SOLO SI EL MENSAJE NO ES MÍO
-        if (d.userId !== myId) {
-            vibrarNuevoMensaje();
-        }
+    function iniciarChat() {
+        chatIniciado = true;
 
-        const div = document.createElement('div');
-        div.className = `msg-container ${d.userId === myId ? 'me' : 'you'}`;
-        div.id = 'msg-'+k;
+        onChildAdded(chatRef, (snap) => {
+            const d = snap.val(); const k = snap.key;
+            
+            // VIBRAR SOLO SI EL MENSAJE NO ES MÍO
+            if (d.userId !== myId) {
+                vibrarNuevoMensaje();
+            }
 
-        let content = d.audioData ? `<audio controls src="${d.audioData}"></audio>` : 
-                      d.imageData ? `<img src="${d.imageData}" onclick="window.open('${d.imageData}')">` : `<span>${d.text}</span>`;
-        
-        div.innerHTML = `
-            <div class="msg" onclick="prepararRespuesta('${d.text || 'Archivo'}')">
-                ${d.replyTo ? `<div style="font-size:11px; opacity:0.6; border-left:2px solid; padding-left:5px; margin-bottom:5px;">${d.replyTo}</div>` : ''}
-                ${content}
-            </div>
-            <div class="msg-meta">
-                <span class="action-link" onclick="prepararRespuesta('${d.text || 'Archivo'}')">Responder</span>
-                ${d.userId === myId ? ` • <span class="action-link" onclick="borrarMsg('${k}')">Borrar</span>` : ''}
-            </div>`;
-        box.appendChild(div); box.scrollTop = box.scrollHeight;
-    });
+            const div = document.createElement('div');
+            div.className = `msg-container ${d.userId === myId ? 'me' : 'you'}`;
+            div.id = 'msg-'+k;
 
-    onChildRemoved(chatRef, (s) => document.getElementById('msg-'+s.key)?.remove());
+            let content = d.audioData ? `<audio controls src="${d.audioData}"></audio>` : 
+                          d.imageData ? `<img src="${d.imageData}" onclick="event.stopPropagation(); abrirLightbox(this.src)">` : `<span>${d.text}</span>`;
+            
+            div.innerHTML = `
+                <div class="msg" onclick="prepararRespuesta('${d.text || 'Archivo'}')">
+                    ${d.replyTo ? `<div style="font-size:11px; opacity:0.6; border-left:2px solid; padding-left:5px; margin-bottom:5px;">${d.replyTo}</div>` : ''}
+                    ${content}
+                </div>
+                <div class="msg-meta">
+                    <span class="action-link" onclick="prepararRespuesta('${d.text || 'Archivo'}')">Responder</span>
+                    ${d.userId === myId ? ` • <span class="action-link" onclick="borrarMsg('${k}')">Borrar</span>` : ''}
+                </div>`;
+            box.appendChild(div); box.scrollTop = box.scrollHeight;
+        });
+
+        onChildRemoved(chatRef, (s) => document.getElementById('msg-'+s.key)?.remove());
+
+        onValue(ref(db, 'status'), (s) => {
+            const d = s.val(); let t = "";
+            for(let id in d) if(id !== myId) t = d[id]?.action === 'grabando' ? "Tu pareja está Grabando..." : "Tu pareja está Escribiendo...";
+            document.getElementById('status').textContent = t;
+        });
+    }
+
     window.limpiarChat = () => confirm("¿Borrar todo?") && remove(chatRef);
 
     input.oninput = () => {
@@ -242,11 +331,6 @@
         clearTimeout(window.tOut);
         window.tOut = setTimeout(() => set(ref(db, 'status/'+myId), null), 2000);
     };
-    onValue(ref(db, 'status'), (s) => {
-        const d = s.val(); let t = "";
-        for(let id in d) if(id !== myId) t = d[id]?.action === 'grabando' ? "Tu pareja está Grabando..." : "Tu pareja está Escribiendo...";
-        document.getElementById('status').textContent = t;
-    });
 </script>
 </body>
 </html>
