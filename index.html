@@ -137,6 +137,7 @@
             setTimeout(() => { box.scrollTop = box.scrollHeight; }, 300);
         } else { alert("Clave Incorrecta"); }
     };
+    document.getElementById('passInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') checkPass(); });
 
     window.iniciarVideo = () => window.open(`https://meet.jit.si/ChatPrivado_9395`, '_blank');
 
